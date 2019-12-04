@@ -360,6 +360,11 @@ public:
     fscanf(fr, "%s\n", buffer);
     objFileName = buffer;
     Mesh tMesh = loadMeshFromOBJ(objFileName.c_str());
+    if (tMesh.vertices.size() == 0)
+    {
+      fclose(fr);
+      return false;
+    }
     tVertices = tMesh.vertices;
     triangles = tMesh.triangles;
     int N = tVertices.size();
@@ -369,7 +374,6 @@ public:
     {
       vertices[i] = Vec<3,T>(tVertices[i][0], tVertices[i][1], tVertices[i][2]);
     }
-    
 
     // load bases vectors
     S.resize(BETAS_SIZE);
@@ -1021,9 +1025,17 @@ int main(int argc,char** argv)
   std::vector<SMPL<float>> smplModels(2);
 
   smplFileNames[0] = "basicModel_m.smpl";
+  if (!smplModels[0].loadModel(smplFileNames[0]))
+  {
+    printf("Error occurred on loading model file basicModel_m.smpl.\n");
+    return -1;
+  }
   smplFileNames[1] = "basicModel_f.smpl";
-  smplModels[0].loadModel(smplFileNames[0]);
-  smplModels[1].loadModel(smplFileNames[1]);
+  if (!smplModels[1].loadModel(smplFileNames[1]))
+  {
+    printf("Error occurred on loading model file basicModel_f.smpl.\n");
+    return -1;
+  }
 
   FILE *fr = fopen("params.txt", "r");
   if (fr)
@@ -1051,6 +1063,10 @@ int main(int argc,char** argv)
   smpl.setupBetas(betas);
 
   Mesh Mmesh = loadMeshFromOBJ(objFileName);
+  if (Mmesh.vertices.size() == 0)
+  {
+    return -1;
+  }
 
   bool showInputMesh = true;
   bool showSMPLModel = true;
@@ -1111,7 +1127,7 @@ int main(int argc,char** argv)
 
   while(1)
   {
-    WindowBegin(ID,"Skinner",Opts().initialGeometry(64,64,-1,-1));
+    WindowBegin(ID,spf("%s - Skinner", objFileName.c_str()).c_str(),Opts().initialGeometry(64,64,-1,-1));
 
     if (windowCloseRequest()||keyDown(KeyEscape)) { break; }
 
