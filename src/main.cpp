@@ -1111,7 +1111,7 @@ int main(int argc,char** argv)
 
   while(1)
   {
-    WindowBegin(ID,"SMPL Fitting","",Opts().initialGeometry(64,64,-1,-1));
+    WindowBegin(ID,"Skinner",Opts().initialGeometry(64,64,-1,-1));
 
     if (windowCloseRequest()||keyDown(KeyEscape)) { break; }
 
