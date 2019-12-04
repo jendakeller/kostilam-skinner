@@ -1,4 +1,4 @@
-# kostilam-skinner
+# Skinner
 The tool for semi-automatic human mesh skinning.
 
 ```
