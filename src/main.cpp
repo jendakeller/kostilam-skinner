@@ -342,7 +342,7 @@ public:
     printf("stop remapping ... %fs\n", (timerGet() - t0)*0.001);
 
     std::vector<V3f> anglesTPose(angles.size(), V3f(0,0,0));
-    skinningModel.vertices = deformVertices(skinningModel.vertices, skinningModel.weights, joints0, angles, joints, anglesTPose);
+    skinningModel.vertices = deformVertices(invScaleAndTranslateVertices(skinningModel.vertices, scale, translate), skinningModel.weights, joints0, angles, joints, anglesTPose);
     
     return skinningModel;
   }
@@ -576,6 +576,20 @@ std::vector<Vec<3,T>> scaleAndTranslateVertices(const std::vector<Vec<3,T>>& inV
   return outVertices;
 }
 
+template<typename T>
+std::vector<Vec<3,T>> invScaleAndTranslateVertices(const std::vector<Vec<3,T>>& inVertices,
+                                                   const T scale,
+                                                   const Vec<3,T> translation)
+{
+  std::vector<Vec<3,T>> outVertices(inVertices.size());
+
+  for (int i=0;i<outVertices.size();i++)
+  {
+    outVertices[i] = (inVertices[i] - translation)/scale;
+  }
+
+  return outVertices;
+}
 
 //------------------------------------------------------------------
 A3f makesdf(const std::vector<V3f>& vertices, const std::vector<V3i>& triangles, int resolution, float &maxExtent, V3f& bboxMin, V3f& bboxCenter)
@@ -1017,6 +1031,7 @@ int main(int argc,char** argv)
 
   std::vector<V3f> smplJoints;
   std::vector<V3f> smplVertices;
+  std::vector<V3i> smplTriangles;
 
   SkinningModel skinningModel;
 
@@ -1079,8 +1094,6 @@ int main(int argc,char** argv)
   bool optimizeTranslation = false;
   bool optimizeScale = false;
   
-  std::vector<V3i> smplTriangles;
-
   A2f jointJointWeights(JOINT_SIZE, JOINT_SIZE);
   for (int i=0;i<JOINT_SIZE;i++)
   for (int j=0;j<JOINT_SIZE;j++)
@@ -1383,7 +1396,7 @@ int main(int argc,char** argv)
         if (showSkinningModel && skinningModel.vertices.size())
         {
           const std::vector<V3i>& triangles = skinningModel.triangles;
-          const std::vector<V3f> vertices   = deformVertices(skinningModel.vertices, skinningModel.weights, skinningModel.joints, angles0, skinningModel.joints, angles);
+          const std::vector<V3f> vertices   = scaleAndTranslateVertices(deformVertices(skinningModel.vertices, skinningModel.weights, skinningModel.joints, angles0, skinningModel.joints, angles), smplScale, smplTranslate);
           const std::vector<V3f>& normals   = calcVertexNormals(vertices, triangles);
           
           for(int j=0;j<triangles.size();j++)
@@ -1617,6 +1630,39 @@ int main(int argc,char** argv)
         //   SpinBox(ID, 0.01f, 1000000.0f, &Cost::lambdaControls);
         // HBoxLayoutEnd();
 
+        if (Button(ID, "Coarse Fit"))
+        {
+          V3f Amin(+FLT_MAX,+FLT_MAX,+FLT_MAX);
+          V3f Amax(-FLT_MAX,-FLT_MAX,-FLT_MAX);
+          V3f Bmin(+FLT_MAX,+FLT_MAX,+FLT_MAX);
+          V3f Bmax(-FLT_MAX,-FLT_MAX,-FLT_MAX);
+
+          for (int i=0;i<Mmesh.vertices.size();i++)
+          {
+            const V3f& v = Mmesh.vertices[i];
+            for (int d=0;d<3;d++)
+            {
+              Amin[d] = std::min(Amin[d], v[d]);
+              Amax[d] = std::max(Amax[d], v[d]);
+            }
+          }
+
+          for (int i=0;i<smplVertices.size();i++)
+          {
+            const V3f& v = smplVertices[i];
+            for (int d=0;d<3;d++)
+            {
+              Bmin[d] = std::min(Bmin[d], v[d]);
+              Bmax[d] = std::max(Bmax[d], v[d]);
+            }
+          }
+
+          V3f A = Amax - Amin;
+          V3f B = Bmax - Bmin;
+
+          smplScale = dot(A,B) / dot(B,B);
+          smplTranslate = 0.5f * (Amax + Amin - Bmax - Bmin);
+        }
         if (Button(ID, "Fit Model To Mesh"))
         {
           SMPL<Dual<float>> smplCost;
