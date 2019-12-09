@@ -228,7 +228,6 @@ public:
     return true;
   }
 
-  //void save(const std::string& skinFileName, const std::string& objFileName)
   void save(const char* node, const char* dir, const char* fname)
   {
     char skinFullPath[_MAX_PATH];
@@ -237,15 +236,12 @@ public:
     _makepath(skinFullPath, node, dir, fname, ".skin");
     _makepath(objFullPath, node, dir, fname, ".obj");
 
-    //FILE* fw = fopen(skinFileName.c_str(), "w");
     FILE* fw = fopen(skinFullPath, "w");
 
     if (!fw) { return; }
 
-    //fprintf(fw, "%s\n", objFileName.c_str());
     fprintf(fw, "%s.obj\n", fname);
 
-    //saveMeshToObj(objFileName, vertices, triangles);
     saveMeshToObj(objFullPath, vertices, triangles);
 
     int N = vertices.size();

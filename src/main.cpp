@@ -1009,7 +1009,15 @@ int main(int argc,char** argv)
     return 1;
   }
 
-  const std::string objFileName = argv[1];
+  const std::string objFilePath = argv[1];
+  char objFileName[_MAX_FNAME];
+  {
+    char node[1024];
+    char dir[_MAX_DIR];
+    char ext[_MAX_EXT];
+
+    _splitpath_s(objFilePath.c_str(), node, dir, objFileName, ext);
+  }
   
   timerReset();
 
@@ -1055,29 +1063,34 @@ int main(int argc,char** argv)
   FILE *fr = fopen("params.txt", "r");
   if (fr)
   {
-    fscanf(fr, "%d\n", &modelSel);
-    fscanf(fr, "%f %f %f %f %f %f %f %f %f %f\n", &betas[0], &betas[1], &betas[2], &betas[3], &betas[4], &betas[5], &betas[6], &betas[7], &betas[8], &betas[9]);
-    for (int i=0;i<JOINT_SIZE;i++)
+    char fname[_MAX_FNAME];
+    fscanf(fr, "%s\n", fname);
+    if (strcmp(objFileName, fname) == 0)
     {
+      fscanf(fr, "%d\n", &modelSel);
+      fscanf(fr, "%f %f %f %f %f %f %f %f %f %f\n", &betas[0], &betas[1], &betas[2], &betas[3], &betas[4], &betas[5], &betas[6], &betas[7], &betas[8], &betas[9]);
+      for (int i=0;i<JOINT_SIZE;i++)
+      {
+        float x,y,z;
+        fscanf(fr, "%f %f %f\n", &x,&y,&z);
+        angles[i](0) = x;
+        angles[i](1) = y;
+        angles[i](2) = z;
+      }
       float x,y,z;
       fscanf(fr, "%f %f %f\n", &x,&y,&z);
-      angles[i](0) = x;
-      angles[i](1) = y;
-      angles[i](2) = z;
+      smplTranslate(0) = x;
+      smplTranslate(1) = y;
+      smplTranslate(2) = z;
+      fscanf(fr, "%f\n", &smplScale);
     }
-    float x,y,z;
-    fscanf(fr, "%f %f %f\n", &x,&y,&z);
-    smplTranslate(0) = x;
-    smplTranslate(1) = y;
-    smplTranslate(2) = z;
-    fscanf(fr, "%f\n", &smplScale);
     fclose(fr);
   }
 
   SMPL<float> smpl = smplModels[modelSel];
   smpl.setupBetas(betas);
 
-  Mesh Mmesh = loadMeshFromOBJ(objFileName);
+  Mesh Mmesh = loadMeshFromOBJ(objFilePath);
   if (Mmesh.vertices.size() == 0)
   {
     return -1;
@@ -1091,7 +1104,7 @@ int main(int argc,char** argv)
   bool showJoints = true;
   bool useWireframe = false;
 
-  bool optimizeTranslation = false;
+  bool optimizeTranslation = true;
   bool optimizeScale = false;
   
   A2f jointJointWeights(JOINT_SIZE, JOINT_SIZE);
@@ -1140,7 +1153,7 @@ int main(int argc,char** argv)
 
   while(1)
   {
-    WindowBegin(ID,spf("%s - Skinner", objFileName.c_str()).c_str(),Opts().initialGeometry(64,64,-1,-1));
+    WindowBegin(ID,spf("%s - Skinner", objFilePath.c_str()).c_str(),Opts().initialGeometry(64,64,-1,-1));
 
     if (windowCloseRequest()||keyDown(KeyEscape)) { break; }
 
@@ -1711,6 +1724,7 @@ int main(int argc,char** argv)
 
           // save params
           FILE *fw = fopen("params.txt", "w");
+          fprintf(fw, "%s\n", objFileName);
           fprintf(fw, "%d\n", modelSel);
           fprintf(fw, "%f", x[0]);
           for (int i=1;i<BETAS_SIZE;i++)
